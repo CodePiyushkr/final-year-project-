@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#818cf8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c084fc;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Main hexagon -->
+  <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" fill="url(#grad1)" opacity="0.9"/>
+  <!-- Inner glow -->
+  <path d="M24 8L38 16V32L24 40L10 32V16L24 8Z" fill="url(#grad2)" opacity="0.5"/>
+  <!-- AI Brain circuit -->
+  <circle cx="24" cy="20" r="6" fill="white" opacity="0.95"/>
+  <circle cx="24" cy="20" r="3" fill="#6366f1"/>
+  <!-- Neural connections -->
+  <path d="M24 26V32M18 23L12 28M30 23L36 28" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+  <circle cx="24" cy="32" r="2" fill="white" opacity="0.9"/>
+  <circle cx="12" cy="28" r="2" fill="white" opacity="0.9"/>
+  <circle cx="36" cy="28" r="2" fill="white" opacity="0.9"/>
+  <!-- Sparkle -->
+  <path d="M38 8L40 12L38 16L36 12L38 8Z" fill="#fbbf24"/>
+</svg>
