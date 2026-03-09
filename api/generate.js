@@ -1,31 +1,52 @@
 import fetch from "node-fetch";
 
-// Groq API Configuration (Free Cloud AI - https://console.groq.com)
+// Groq API Configuration
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const MODEL = "llama3-70b-8192"; // Llama 3 70B - Smart & Fast
+const MODEL = "llama3-70b-8192";
 
-/**
- * Check if Groq API key is configured
- */
-function checkApiKey() {
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not set. Get your free key at https://console.groq.com");
+export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
-}
 
-/**
- * Generate NEW website layout from prompt
- */
-export async function generateLayout(prompt) {
-  console.log("🤖 Connecting to Groq AI (Llama 3 70B)...");
-  checkApiKey();
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-  console.log("✅ Generating website...");
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_API_KEY) {
+    return res.status(500).json({ error: "GROQ_API_KEY not configured" });
+  }
 
-  const systemPrompt = `You are a website content generator. Create JSON content for a modern website.
+  try {
+    const { prompt, currentLayout } = req.body;
 
-RESPOND WITH ONLY THIS JSON STRUCTURE (fill in the values based on the business type):
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+
+    let systemPrompt, userPrompt;
+
+    if (currentLayout) {
+      // Modify existing website
+      const currentData = currentLayout.businessName ? currentLayout : convertOldFormat(currentLayout);
+      systemPrompt = `Modify this website JSON based on the user's request. Return the complete updated JSON.
+
+CURRENT WEBSITE:
+${JSON.stringify(currentData, null, 2)}
+
+Return ONLY the modified JSON with a "message" field explaining changes. No markdown, just JSON.`;
+      userPrompt = `USER REQUEST: "${prompt}"\n\nUpdated JSON:`;
+    } else {
+      // Generate new website
+      systemPrompt = `You are a website content generator. Create JSON content for a modern website.
+
+RESPOND WITH ONLY THIS JSON STRUCTURE:
 {
   "message": "Short friendly message about what you created",
   "businessName": "Creative business name",
@@ -56,33 +77,62 @@ RESPOND WITH ONLY THIS JSON STRUCTURE (fill in the values based on the business 
 RULES:
 - Return ONLY valid JSON, no markdown
 - Use realistic content specific to the business type
-- Use relevant emojis for feature icons
-- Keep descriptions SHORT (under 10 words)`;
+- Use relevant emojis for feature icons`;
+      userPrompt = `Business type: "${prompt}"\n\nJSON:`;
+    }
 
-  return await callGroqAPI(systemPrompt, `Business type: "${prompt}"\n\nJSON:`);
+    // Call Groq API
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("Empty response from AI");
+    }
+
+    // Parse JSON from response
+    const jsonStr = cleanJsonResponse(content);
+    const websiteData = JSON.parse(jsonStr);
+    const layout = convertToSectionFormat(websiteData);
+    layout.message = websiteData.message;
+
+    return res.status(200).json({ layout });
+
+  } catch (error) {
+    console.error("Error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
 }
 
-/**
- * MODIFY existing website based on user request
- */
-export async function modifyLayout(prompt, currentLayout) {
-  console.log("🤖 Modifying website with Groq AI...");
-  checkApiKey();
-
-  // Convert old format to new format if needed
-  const currentData = currentLayout.businessName ? currentLayout : convertOldFormat(currentLayout);
-
-  const systemPrompt = `Modify this website JSON based on the user's request. Return the complete updated JSON.
-
-CURRENT WEBSITE:
-${JSON.stringify(currentData, null, 2)}
-
-Return ONLY the modified JSON with a "message" field explaining changes. No markdown, just JSON.`;
-
-  return await callGroqAPI(systemPrompt, `USER REQUEST: "${prompt}"\n\nUpdated JSON:`);
+function cleanJsonResponse(response) {
+  response = response.replace(/```json\n?/gi, "").replace(/```\n?/g, "").trim();
+  const start = response.indexOf("{");
+  const end = response.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("No valid JSON found");
+  return response.substring(start, end + 1);
 }
 
-// Convert old section-based format to new simple format
 function convertOldFormat(layout) {
   const hero = layout.sections?.find(s => s.type === 'hero') || {};
   const features = layout.sections?.find(s => s.type === 'features') || {};
@@ -108,60 +158,6 @@ function convertOldFormat(layout) {
   };
 }
 
-/**
- * Call Groq API (Cloud-based Llama 3)
- */
-async function callGroqAPI(systemPrompt, userPrompt) {
-  try {
-    const response = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.8,
-        max_tokens: 2000,
-        top_p: 0.9,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Groq API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      throw new Error("Empty response from Groq API");
-    }
-
-    console.log("📝 AI Response received");
-    
-    let jsonResponse = cleanJsonResponse(data.choices[0].message.content);
-    const websiteData = JSON.parse(jsonResponse);
-    
-    // Convert to section-based format for the frontend
-    const layout = convertToSectionFormat(websiteData);
-    layout.message = websiteData.message;
-    
-    console.log("✅ Website generated!");
-    return layout;
-  } catch (error) {
-    console.error("❌ AI Error:", error.message);
-    throw error;
-  }
-}
-
-/**
- * Convert simple format to section-based format for frontend
- */
 function convertToSectionFormat(data) {
   return {
     theme: data.theme || "dark",
@@ -209,27 +205,9 @@ function convertToSectionFormat(data) {
         ...(data.contact || {})
       }
     ].filter(s => {
-      // Remove empty sections
       if (s.type === 'stats' && (!s.items || s.items.length === 0)) return false;
       if (s.type === 'testimonials' && (!s.items || s.items.length === 0)) return false;
       return true;
     })
   };
-}
-
-/**
- * Clean JSON response from AI
- */
-function cleanJsonResponse(response) {
-  response = response.replace(/```json\n?/gi, "").replace(/```\n?/g, "");
-  response = response.trim();
-  
-  const startIndex = response.indexOf("{");
-  const endIndex = response.lastIndexOf("}");
-  
-  if (startIndex === -1 || endIndex === -1) {
-    throw new Error("No valid JSON found in AI response");
-  }
-  
-  return response.substring(startIndex, endIndex + 1);
 }

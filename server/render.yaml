@@ -1,0 +1,12 @@
+# Render Blueprint
+services:
+  - type: web
+    name: ai-website-builder-api
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OLLAMA_URL
+        value: https://your-ollama-server.com
