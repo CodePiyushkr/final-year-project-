@@ -273,18 +273,26 @@ ${(plan.features || []).map(f => `            <li class="flex items-center gap-3
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate website");
+        const errorText = await response.text();
+        let errorMessage = "Failed to generate website";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      setLayout(data);
-      if (data.theme) setTheme(data.theme);
+      const layoutData = data.layout || data;
+      setLayout(layoutData);
+      if (layoutData.theme) setTheme(layoutData.theme);
 
       // Use AI's natural conversational message, or generate a fallback
-      const aiMessage = data.message || (isModification 
+      const aiMessage = layoutData.message || data.message || (isModification 
         ? `Done! I've updated your website based on your request. The changes are now live in the preview.`
-        : `I've created a beautiful ${data.theme || 'dark'} themed website for you! Take a look at the preview on the right - I think you'll love it.`);
+        : `I've created a beautiful ${layoutData.theme || 'dark'} themed website for you! Take a look at the preview on the right - I think you'll love it.`);
 
       setMessages(prev => {
         const updated = [...prev];
