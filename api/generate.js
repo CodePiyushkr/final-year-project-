@@ -1,6 +1,6 @@
 // Groq API Configuration
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama3-70b-8192";
+const MODEL = "llama-3.3-70b-versatile"; // Latest Llama 3.3 70B
 
 export default async function handler(req, res) {
   // Enable CORS

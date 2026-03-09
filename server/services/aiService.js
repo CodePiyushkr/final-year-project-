@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 // Groq API Configuration (Free Cloud AI - https://console.groq.com)
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const MODEL = "llama3-70b-8192"; // Llama 3 70B - Smart & Fast
+const MODEL = "llama-3.3-70b-versatile"; // Latest Llama 3.3 70B
 
 /**
  * Check if Groq API key is configured
